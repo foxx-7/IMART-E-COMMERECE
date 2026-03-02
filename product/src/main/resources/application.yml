@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: imart_product_service
+  datasource:
+    url:  jdbc:postgresql://localhost:5432/emartdb
+    username: emart
+    password: emart123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 6061
