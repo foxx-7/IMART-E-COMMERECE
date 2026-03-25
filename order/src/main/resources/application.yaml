@@ -1,0 +1,65 @@
+spring:
+    application:
+        name: order-application
+
+    datasource:
+        uri: jdbc:h2:mem:orderdb
+        driverClassName: org.h2.Driver
+        username: sa
+        password:
+    jpa:
+        database-platform: org.hibernate.dialect.H2Dialect
+        show-sql: true
+        hibernate:
+            ddl-auto: update
+        properties:
+            hibernate:
+                format_sql: true
+    h2:
+        console:
+            enabled: true
+            path: /h2-console
+
+server:
+    port:   6063
+
+    kafka:
+        producer:
+            bootstrap-servers: localhost:9092
+            key-serializer: org.apache.kafka.common.serialization.StringSerializer
+            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+            retries: 5
+            acks: all
+            properties:
+                spring.json.add.type.headers: false
+        consumer:
+            bootstrap-servers: localhost:9092
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+            enable-auto-commit: true
+            auto-offset-reset: earliest
+            properties:
+                spring.deserializer.support.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+                spring.json.trusted.packages: "*"
+app:
+    kafka:
+        topics:
+            producer:
+                order-initiated-topic: "sales.orders.v1.initiated"
+                order-created-topic: "sales.orders.v1.created"
+            consumer:
+                checkout-topic: "sales.checkout.v1.initiated"
+                payment-successful-topic: "sales.payment.v1.success"
+
+
+logging:
+    level:
+        root: INFO
+        org.springframework.amqp:   DEBUG
+
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:6069/eureka/
+            register-with-eureka:   true
+            fetch-registry: true

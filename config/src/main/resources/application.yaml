@@ -1,0 +1,18 @@
+server:
+    port:   6064
+
+spring:
+    application:
+        name:   config-server
+    profiles:
+        active: native
+    cloud:
+        config:
+            server:
+                native:
+                    search-locations:   classpath:/service-configuration
+
+logging:
+    level:
+        root:   INFO
+        com.imart.config-server:    DEBUG

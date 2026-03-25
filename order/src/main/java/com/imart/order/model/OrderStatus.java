@@ -1,0 +1,5 @@
+package com.imart.order.model;
+
+public enum OrderStatus {
+    DECLINED, AWAITING_ADDRESS,AWAITING_ADDRESS_SELECTION, AWAITING_PAYMENT, ORDER_CREATED
+}

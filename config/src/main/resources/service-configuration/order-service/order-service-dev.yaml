@@ -1,0 +1,46 @@
+spring:
+    datasource:
+        uri: jdbc:h2:mem:orderdb
+        driverClassName: org.h2.Driver
+        username: sa
+        password:
+    jpa:
+        database-platform: org.hibernate.dialect.H2Dialect
+        show-sql: true
+        hibernate:
+            ddl-auto: update
+        properties:
+            hibernate:
+                format_sql: true
+    h2:
+        console:
+            enabled: true
+            path: /h2-console
+
+    rabbitmq:
+        host:   localhost
+        port:   5672
+        username:   guest
+        password:   guest
+rabbitmq:
+    queue:
+        name: order.queue
+    exchange:
+        name: order.exchange
+    routing:
+        key: order.tracking
+
+server:
+    port:   6063
+
+logging:
+    level:
+        root: TRACE
+        org.springframework.amqp:   DEBUG
+
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:6069/eureka/
+            register-with-eureka:   true
+            fetch-registry: true
