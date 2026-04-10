@@ -1,168 +1,130 @@
 package com.imart.order.service;
 
 import com.imart.order.dto.foreign.Address;
-import com.imart.order.dto.foreign.Cart;
-import com.imart.order.dto.foreign.CartState;
-import com.imart.order.dto.foreign.InventoryCheckResponse;
-import com.imart.order.dto.local.*;
-import com.imart.order.feignclients.InventoryServiceFeignClient;
-import com.imart.order.feignclients.UserServiceFeignClient;
+import com.imart.order.dto.foreign.CartItem;
+import com.imart.order.dto.local.CheckOut;
+import com.imart.order.exception.InvalidAddressException;
+import com.imart.order.exception.ResourceNotFoundException;
+import com.imart.order.kafka.producer.*;
+import com.imart.order.dto.local.TransactionRecord;
+import com.imart.order.exception.InvalidSessionException;
+import com.imart.order.exception.UnprocessableRequestException;
 import com.imart.order.model.Order;
 import com.imart.order.model.OrderStatus;
-import com.imart.order.publisher.KafkaPublisher;
 import com.imart.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
-
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
 
+    private final KafkaProducer kafkaProducer;
     private final OrderRepository orderRepository;
-    private final InventoryServiceFeignClient inventoryServiceFeignClient;
-    private final UserServiceFeignClient userServiceFeignClient;
-    private final KafkaPublisher kafkaPublisher;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final SessionService sessionService;
+    private final AddressValidationService addressValidationService;
 
-    @Value("${app.kafka.topics.producer.order-initiated-topic}")
-    private  String orderInitiatedTopic;
+    @Qualifier("redisVaultTemplate")
+    private final RedisTemplate<String , Object> vaultRedisTemplate;
 
-    @Value("${app.kafka.topics.producer.order-created-topic}")
-    private  String orderCreatedTopic;
+    public Order confirmOrder(TransactionRecord transactionRecord){
 
-    @Value("${app.kafka.topics.producer.awaiting-shipping-address-topic}")
-    private String awaitingShippingAddressTopic;
+        final String redisKey = "checkout:" + transactionRecord.getUserId();
+        CheckOut checkOut = (CheckOut) vaultRedisTemplate.opsForValue().get(redisKey);
 
-    @Value("${app.kafka.topics.producer.ready-for-payment-topic}")
-    private String readyForPaymentTopic;
-
-    @Value("${app.kafka.topics.publisher.awaiting-shipping-address-selection=topic")
-    private String awaitingShippingAddressSelectionTopic;
-
-    public void initiateOrderFromCheckOut(CheckOutEvent checkOutEvent) {
-        Long userId = checkOutEvent.getCart().getUserId();
-        String checkOutSessionId = checkOutEvent.getSessionId();
-
-
-        InventoryCheckResponse inventoryCheckResponse = inventoryServiceFeignClient
-                .processStockAvailability(checkOutEvent.getCart().getItems());
-
-        List<Address> availableShippingAddresses = userServiceFeignClient.getAvailableShippingAddresses(userId);
-
-        //if inventory response  declares affected stock quantity
-        if (!inventoryCheckResponse.getOutOfStockItemsList().isEmpty()) {
-
-            //adjust cart based on inventory response data
-            CartState cartState = CartState.builder()
-                    .userId(checkOutEvent.getCart().getUserId())
-                    .id(checkOutEvent.getCart().getId())
-                    .availableItemList(inventoryCheckResponse.getAvailableItemsList())
-                    .outOfStockItems(inventoryCheckResponse.getOutOfStockItemsList())
-                    .subTotal(getTotal(inventoryCheckResponse))
-                    .build();
-
-            checkOutEvent.setCart(cartState);
-
-            if(availableShippingAddresses.isEmpty()){
-                handleNoShippingAddress(checkOutEvent);
-            }
-            else {
-                handleAddressChoice(checkOutEvent, availableShippingAddresses);
-            }
+        if(checkOut == null){
+            throw new UnprocessableRequestException(" null exception encountered while processing checkout");
+        }
+        if(!sessionService.validateCheckOutSession(transactionRecord.getUserId())){
+            throw new InvalidSessionException("invalid session accessed");
         }
 
-        // cart inventory intact**
-        if(availableShippingAddresses.isEmpty()){
-            handleNoShippingAddress(checkOutEvent);
-        }
-        else {
-            handleAddressChoice(checkOutEvent, availableShippingAddresses);
-        }
-    }
-
-    public void handleNoShippingAddress(CheckOutEvent checkOutEvent){
-        final String checkOutSessionId = checkOutEvent.getSessionId();
-        PendingAddressRequest pendingAddressRequest = PendingAddressRequest.builder()
-                .checkOutSessionId(checkOutSessionId)
-                .cart((Cart) checkOutEvent.getCart())
-                .availableAddresses(null)
-                .requiresNewAddress(true)
-                .requiresAddressChoice(false)
-                .status(OrderStatus.AWAITING_ADDRESS)
-                .build();
-
-        String rediskey = "checkout:pending:" + checkOutSessionId;
-
-        //checkout data stored in redis with 30 minutes lifespan
-        redisTemplate.opsForValue().set(rediskey, pendingAddressRequest, 30, TimeUnit.MINUTES);
-
-        //publish event for frontend to pickup and provide a valid shipping address
-        kafkaPublisher.publishEvent(awaitingShippingAddressTopic, pendingAddressRequest);
-    }
-
-    public void handleAddressChoice(CheckOutEvent checkOutEvent, List<Address> addresses){
-        final String checkOutSessionId = checkOutEvent.getSessionId();
-        PendingAddressRequest pendingAddressRequest = PendingAddressRequest.builder()
-                .checkOutSessionId(checkOutSessionId)
-                .cart((Cart) checkOutEvent.getCart())
-                .availableAddresses(addresses)
-                .status(OrderStatus.AWAITING_ADDRESS_SELECTION)
-                .requiresAddressChoice(PendingAddressRequest.setAddressRequirement(addresses))
-                .requiresNewAddress(!PendingAddressRequest.setAddressRequirement(addresses))
-                .build();
-
-        String rediskey = "checkout:pending:" + checkOutSessionId;
-
-        redisTemplate.opsForValue().set(rediskey,pendingAddressRequest, 30, TimeUnit.MINUTES);
-
-
-        kafkaPublisher.publishEvent(awaitingShippingAddressSelectionTopic, pendingAddressRequest);
-    }
-
-    public OrderResponse createOrder(Long userId, OrderRequest request){
         Order order = Order.builder()
-                .cart(request.getCart())
-                .checkOutAmount(request.getTotalAmount())
-                .status(OrderStatus.ORDER_CREATED)
+                .userId(transactionRecord.getUserId())
+                .items(checkOut.getItems())
+                .checkOutAmount(transactionRecord.getAmount())
+                .shippingAddress(checkOut.getShippingAddress())
+                .status(OrderStatus.ORDER_CONFIRMED)
+                .isActive(true)
                 .build();
+
         orderRepository.save(order);
 
-        OrderCreatedEvent orderCreatedEvent = OrderCreatedEvent.builder()
-                .userId(userId)
-                .items(request.getCart().getItems())
-                .totalAmount(request.getTotalAmount())
-                .status(OrderStatus.ORDER_CREATED)
-                .creationTimeStamp(LocalDateTime.now())
-                .build();
+        sessionService.endCheckOutSession(transactionRecord.getUserId());
 
-        kafkaPublisher.publishEvent(orderCreatedTopic, orderCreatedEvent);
+       return order;
     }
 
-;    public void processForPayment(ReadyforPaymentRequest request){
-
+    //get active user orders
+    public List<Order> fetchActiveOrder(Long userId){
+       return orderRepository.findAllByUserIdAndIsActiveTrue(userId);
     }
 
-    private BigDecimal getTotal(InventoryCheckResponse inventoryCheckResponse){
-        BigDecimal total = BigDecimal.ZERO;
-        for(InventoryCheckResponse.AvailableItem item: inventoryCheckResponse.getAvailableItemsList()){
-            total = total.add((item.getPrice().multiply(BigDecimal.valueOf(item.getReservedQuantity()))));
-        }
+    //get order history
+    public List<Order> fetchAll(Long userId){
+        return orderRepository.findAllByUserId(userId);
+    }
 
-        if(!inventoryCheckResponse.getOutOfStockItemsList().isEmpty()){
-            for(InventoryCheckResponse.OutOfStockItem item:inventoryCheckResponse.getOutOfStockItemsList()){
-                total = total.add(item.getPrice().multiply(BigDecimal.valueOf(item.getAvailableQuantity())));
+    //cancel active order
+   public void cancelOrder(Long userId, String checkOutId){
+            Optional<Order> orderOpt = orderRepository.
+                    findByUserIdAndCheckOutIdAndIsActiveTrue(userId, UUID.fromString(checkOutId));
+            if(orderOpt.isEmpty()) {
+                throw new ResourceNotFoundException("order not found");
             }
+            Order order = orderOpt.get();
+           orderRepository.delete(order);
+   }
+
+   //update order shipping address
+   public void updateShippingAddress(Long userId, Address addressUpdate){
+       if(addressValidationService.validateAddress(addressUpdate)){
+          throw new InvalidAddressException("invalid address provided");
+       }
+       Optional<Order> orderOpt = orderRepository.findByUserId(userId);
+       if(orderOpt.isEmpty()){
+           throw new ResourceNotFoundException("order not found");
+       }
+       Order order = orderOpt.get();
+
+       order.setShippingAddress(addressUpdate);
+
+       orderRepository.save(order);
+   }
+
+   //remove item from order cart
+   public void  removeItemFromOrder(Long userId,Long productId){
+
+       Optional<Order> orderOpt = orderRepository.findByUserId(userId);
+       if(orderOpt.isEmpty()){
+           throw new ResourceNotFoundException("order not found");
+       }
+
+       Order order = orderOpt.get();
+       List<CartItem> cartItems = order.getItems();
+
+       cartItems.removeIf(item -> item.getProductId().equals(productId));
+
+        order.setItems(cartItems);
+       orderRepository.save(order);
+
+   }
+
+   //mark order as inactive
+   public void deactivateOrder(Long userId, String checkOutId){
+        Optional<Order> orderOpt = orderRepository.findByUserIdAndCheckOutIdAndIsActiveTrue(userId, UUID.fromString(checkOutId));
+        if(orderOpt.isEmpty()){
+           throw new ResourceNotFoundException("order not found");
         }
-        return total;
-    }
+        Order order = orderOpt.get();
+        order.setActive(false);
+
+        orderRepository.save(order);
+   }
 }

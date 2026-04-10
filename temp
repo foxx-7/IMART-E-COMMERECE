@@ -1,0 +1,11 @@
+var serializer = GenericJacksonJsonRedisSerializer.builder()
+    .customize(mapperBuilder -> {
+        // Ensure we are using ISO Strings (2026 Standard)
+        mapperBuilder.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // Optional: Include the Zone ID in the JSON string
+        mapperBuilder.enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
+    })
+    .build();
+
+    time serialzation adjustment for redis

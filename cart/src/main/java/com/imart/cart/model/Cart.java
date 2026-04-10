@@ -1,9 +1,7 @@
 package com.imart.cart.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -11,7 +9,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "cart-table")
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Cart {

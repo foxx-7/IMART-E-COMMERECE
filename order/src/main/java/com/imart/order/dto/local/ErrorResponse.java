@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class ErrorResponse {
     private String error;
     private String message;
+    private Object payload;
     private HttpStatus status;
     private LocalDateTime timeStamp;
 }

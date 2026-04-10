@@ -4,10 +4,7 @@ package com.imart.user.model;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.imart.user.exception.NotFoundException;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,11 +14,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@Table(name = "user_profile")
+@Table(name = "user_profile",
+indexes = {
+        @Index(name = "idx_email", columnList = "email"),
+        @Index(name = "idx_phoneNumber",columnList = "phoneNumber")
+},
+        uniqueConstraints = {
+        @UniqueConstraint(name = "uk_email",columnNames = "email"),
+        @UniqueConstraint(name = "uk_phoneNumber",columnNames = "phoneNumber")
+        })
 public class UserProfile {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,27 +52,6 @@ public class UserProfile {
     @UpdateTimestamp
     private LocalDateTime updateTime;
 
-    public void addAddress(Address address){
-        address.setUserProfile(this);
-        addresses.add(address);
-    }
-
-    public void removeAddress(Address address){
-        address.setUserProfile(null);
-        addresses.remove(address);
-    }
-
-    public Address getDefaultAddress(){
-        if(addresses.isEmpty()){
-            throw new NotFoundException("no address provided for user: " + userId );
-        }
-        for(Address address : addresses){
-            if(address.isDefault()){
-                return address;
-            }
-        }
-        throw new NotFoundException("default address for user: " + userId + " not found");
-    }
     public enum ROLE{
         ADMIN, CUSTOMER, SELLER;
     }

@@ -1,7 +1,11 @@
+server:
+    port: 6063
+
 spring:
     application:
         name: order-application
 
+#database configuration
     datasource:
         uri: jdbc:h2:mem:orderdb
         driverClassName: org.h2.Driver
@@ -20,9 +24,7 @@ spring:
             enabled: true
             path: /h2-console
 
-server:
-    port:   6063
-
+#kafka configuration
     kafka:
         producer:
             bootstrap-servers: localhost:9092
@@ -41,6 +43,8 @@ server:
             properties:
                 spring.deserializer.support.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
                 spring.json.trusted.packages: "*"
+
+#kafka topic declaration
 app:
     kafka:
         topics:
@@ -50,6 +54,21 @@ app:
             consumer:
                 checkout-topic: "sales.checkout.v1.initiated"
                 payment-successful-topic: "sales.payment.v1.success"
+    service:
+        redirection:
+            url:
+                address-resolution-service: http://localhost:6063/api/v1/checkout/address
+                payment-processing-service: http://localhost:6063/api/v1/checkout/payment
+                cart-validation-service: http://localhost:6063/api/v1/checkout/carts/validate
+# redis configuration for custom and turbo
+custom:
+    redis:
+        vault:
+            host: localhost
+            port: 7070
+        turbo:
+            host: localhost
+            port: 7071
 
 
 logging:

@@ -61,7 +61,10 @@ app:
                 checkout-event: "sales.checkout.v1.initiated"
             consumer:
                 order-created-event: "sales.orders.v1.created"
-
+    service:
+        redirection:
+            url:
+                checkout-service-url: http://localhost:6063/api/v1/checkout/init
 #actuator configs
 management:
     endpoints:

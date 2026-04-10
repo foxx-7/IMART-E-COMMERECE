@@ -15,15 +15,12 @@ public class ProductUpdateMapper {
             switch (key) {
                 case "name" -> existingProduct.setName((String) value);
                 case "price" -> {
-                    assert value instanceof BigDecimal;
                     existingProduct.setPrice(BigDecimal.valueOf(Long.parseLong(String.valueOf(value))));
                 }
                 case "stockQuantity" -> {
-                    assert value instanceof Long;
                     existingProduct.setStockQuantity((Long) value);
                 }
                 case "description" -> {
-                    assert value instanceof String;
                     existingProduct.setDescription((String) value);
                 }
 

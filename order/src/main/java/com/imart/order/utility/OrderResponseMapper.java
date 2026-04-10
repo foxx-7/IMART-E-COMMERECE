@@ -11,11 +11,10 @@ public class OrderResponseMapper {
 
         return OrderResponse.builder()
                 .userId(order.getUserId())
+                .items(order.getItems())
                 .checkOutAmount(order.getCheckOutAmount())
                 .creationTimeStamp(order.getCreationTimeStamp())
                 .updateTimestamp(order.getUpdateTimeStamp())
-                .cartId(order.getCartId())
-                .status(String.valueOf(order.getStatus()))
                 .build();
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -28,7 +29,7 @@ public class UserController {
 
     @GetMapping("/profiles")
     public ResponseEntity<ProfileResponse> fetchProfileById(@RequestHeader("X-User-Id") Long userId) {
-        return ResponseEntity.status(HttpStatus.OK).body(userService.getProfileByUserId(userId));
+        return ResponseEntity.status(HttpStatus.OK).body(ProfileResponseMapper.mapToProfileResponse(userService.getProfileByUserId(userId)));
     }
 
     @GetMapping("/admin/profiles")
@@ -43,9 +44,8 @@ public class UserController {
     }
 
     @PatchMapping("/profiles")
-    public ResponseEntity<String> updateProfile(@RequestHeader("X-User-Id") Long userId, @RequestBody ProfileRequest request) {
-        userService.updateProfile(userId, ProfileMapper.mapToProfile((request)));
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body("profile updated successfully");
+    public ResponseEntity<ProfileResponse> updateProfile(@RequestHeader("X-User-Id") Long userId, @RequestBody Map<String,Object> profileUpdate) {
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ProfileResponseMapper.mapToProfileResponse(userService.updateProfile(userId, profileUpdate)));
     }
 }
 

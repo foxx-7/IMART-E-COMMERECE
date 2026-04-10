@@ -1,6 +1,6 @@
-package com.imart.order.feignclients;
+package com.imart.order.feignclient;
 
-import com.imart.order.dto.foreign.CartItemResponse;
+import com.imart.order.dto.foreign.CartItem;
 import com.imart.order.dto.foreign.InventoryCheckResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Component;
@@ -15,5 +15,5 @@ public interface InventoryServiceFeignClient {
 
     @GetMapping("/api/v1/inventory")
     InventoryCheckResponse processStockAvailability(@RequestBody
-    List<CartItemResponse> cartItems);
+    List<CartItem> cartItems);
 }

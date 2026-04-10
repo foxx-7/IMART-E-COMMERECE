@@ -2,6 +2,7 @@ package com.imart.cart.controller;
 
 import com.imart.cart.dto.local.CartItemRequest;
 import com.imart.cart.dto.local.CartItemResponse;
+import com.imart.cart.dto.local.CheckOutRedirect;
 import com.imart.cart.model.CartItem;
 import com.imart.cart.service.CartService;
 import com.imart.cart.utility.CartItemResponseMapper;
@@ -30,7 +31,7 @@ public class CartController {
     }
 
     @PostMapping("/carts/checkout")
-   public ResponseEntity<Void> checkOutCart(@RequestHeader("X-User-Id") Long userId){
+   public ResponseEntity<CheckOutRedirect> checkOutCart(@RequestHeader("X-User-Id") Long userId){
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(cartService.checkOut(userId));
     }
 
@@ -40,7 +41,7 @@ public class CartController {
     }
 
     @GetMapping("/admin/carts")
-    public ResponseEntity<List<CartItem>> getAllCArtItems(){
+    public ResponseEntity<List<CartItemResponse>> getAllCArtItems(){
         return ResponseEntity.status(HttpStatus.OK).body(cartService.fetchAllCartItems());
     }
 

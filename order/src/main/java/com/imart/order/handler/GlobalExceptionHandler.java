@@ -1,9 +1,8 @@
 package com.imart.order.handler;
 
 import com.imart.order.dto.local.ErrorResponse;
-import com.imart.order.exception.SessionTimeOutException;
-import com.imart.order.exception.ResourceNotFoundException;
-import com.imart.order.exception.UnprocessableRequestException;
+import com.imart.order.exception.*;
+import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -46,6 +45,55 @@ public class GlobalExceptionHandler {
                 .error("session timeout")
                 .message(e.getMessage())
                 .status(HttpStatus.GONE)
+                .timeStamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(RecordAlreadyExistingException.class)
+    public ResponseEntity<ErrorResponse> handleAlreadyExistingRecord(RecordAlreadyExistingException e){
+        //builder pattern used here to set error fields
+        ErrorResponse response = ErrorResponse.builder()
+                .error("record already exists")
+                .message(e.getMessage())
+                .status(HttpStatus.CONFLICT)
+                .timeStamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(InvalidAddressException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAddress(InvalidAddressException e){
+        ErrorResponse response = ErrorResponse.builder()
+                .error("invalid address")
+                .message(e.getMessage())
+                .status(HttpStatus.BAD_REQUEST)
+                .timeStamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(InvalidSessionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSession(InvalidSessionException e){
+        ErrorResponse response = ErrorResponse.builder()
+                .error("invalid address")
+                .message(e.getMessage())
+                .status(HttpStatus.UNAUTHORIZED)
+                .timeStamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(PendingActiveSessionException.class)
+    public ResponseEntity<ErrorResponse> handlePendingSession(PendingActiveSessionException e){
+        ErrorResponse response = ErrorResponse.builder()
+                .error("invalid address")
+                .message(e.getMessage())
+                .status(HttpStatus.CONFLICT)
                 .timeStamp(LocalDateTime.now())
                 .build();
 

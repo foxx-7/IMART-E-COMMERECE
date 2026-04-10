@@ -2,10 +2,9 @@ package com.imart.cart.service;
 
 import com.imart.cart.dto.foreign.Product;
 import com.imart.cart.dto.foreign.ProductInventory;
-import com.imart.cart.dto.local.CartDto;
 import com.imart.cart.dto.local.CartItemRequest;
 import com.imart.cart.dto.local.CartItemResponse;
-import com.imart.cart.dto.local.CheckOutEvent;
+import com.imart.cart.dto.local.CheckOutRedirect;
 import com.imart.cart.exception.NotFoundException;
 import com.imart.cart.exception.ResourceUnavaliableException;
 import com.imart.cart.exception.UncompleteableActionException;
@@ -19,7 +18,6 @@ import com.imart.cart.repository.CartRepository;
 import com.imart.cart.utility.CartItemResponseMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +34,8 @@ public class CartService {
     private final ProductServiceFeignClient productServiceFeignClient;
     private final InventoryServiceFeignClient inventoryServiceFeignClient;
     private final CartRepository cartRepository;
-    @Value("${app.kafka.topics.producer.checkout-event}")
-    private String checkOutEventTopic;
+    @Value("${app.service.redirection.url.checkout=service-url}")
+    private String checkOutServiceUrl;
 
     //** create or update existing user cart
     @Transactional
@@ -60,18 +58,15 @@ public class CartService {
           if(existingCartItemOpt.isPresent()) {
               CartItem existingCartItem = existingCartItemOpt.get();
               existingCartItem.setQuantity(existingCartItem.getQuantity() + request.getQuantity());
-              existingCartItem.setCumulativePrice(existingCartItem.getCumulativePrice()
-                      .add(product.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()))));
               cartItemRepository.save(existingCartItem);
               return existingCartItem;
           }
-          //else we just create a new cartitem for the product and add it to the user cart
+          //else we just create a new cart item for the product and add it to the user cart
           else{
               CartItem cartItem = CartItem.builder()
                       .userId(userId)
                       .productId(request.getProductId())
                       .quantity(request.getQuantity())
-                      .cumulativePrice(product.getPrice().multiply(BigDecimal.valueOf(request.getQuantity())))
                       .cart(existingCart)
                       .build();
               existingCart.addItem(cartItem);
@@ -83,7 +78,8 @@ public class CartService {
            //create new cart item
            CartItem cartItem = CartItem.builder()
                    .userId(userId)
-                   .cumulativePrice(product.getPrice().multiply(BigDecimal.valueOf(request.getQuantity())))
+                   .price(product.getPrice())
+                   .quantity(request.getQuantity())
                    .build();
            Cart cart = new Cart();
            cart.setUserId(userId);
@@ -121,43 +117,30 @@ public class CartService {
 
     //only admins are able to fetch all cart items in repository
     @Transactional
-    public List<CartItem> fetchAllCartItems() {
-        return cartItemRepository.findAll();
+    public List<CartItemResponse> fetchAllCartItems() {
+        List<CartItem> cartItems = cartItemRepository.findAll();
+        return cartItems.stream()
+                .map(CartItemResponseMapper::mapToCartItemResponse)
+                .toList();
     }
 
     //checkout user cart event producer
     @Transactional
-    public @Nullable Void checkOut(Long userId){
+    public CheckOutRedirect checkOut(Long userId){
         List<CartItem> items = cartItemRepository.findByUserId(userId);
         if(items.isEmpty()){
             throw new NotFoundException("cart is empty");
         }
-        CartDto cartDto = CartDto.builder()
-                .items(items.stream().map(CartItemResponseMapper::mapToCartItemResponse).toList())
-                .subtotal(processTotalAmount(items))
-                .cartId(items.get(0).getCart().getId())
-                .userId(userId).build();
-        CheckOutEvent event = new CheckOutEvent(cartDto);
-        kafkaPublisher.publishEvent(checkOutEventTopic, event);
-        return null;
+        List<CartItemResponse> cartItems = items.stream()
+                .map(CartItemResponseMapper::mapToCartItemResponse)
+                .toList();
+        return  new CheckOutRedirect(userId,cartItems, checkOutServiceUrl);
     }
  //clear user cart after checkout .
     @Transactional
     public void clearCart(Long userId){
-        //related cartitems will be deleted from db due to orphan removal relationship
+        //related cart items will be deleted from db due to orphan removal relationship
         cartRepository.deleteByUserId(userId);
-    }
-
-//calculate total price of items in cart...subtotal
-    private BigDecimal processTotalAmount(List<CartItem> items){
-        BigDecimal total = BigDecimal.ZERO;
-        if(items == null || items.isEmpty()){
-            throw new UncompleteableActionException("cart is null or empty");
-        }
-        for (CartItem item  : items){
-            total = total.add(item.getCumulativePrice());
-        }
-        return total;
     }
 }
 

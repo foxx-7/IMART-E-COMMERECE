@@ -2,10 +2,7 @@ package com.imart.cart.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -13,7 +10,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Table(name = "cart-items")
 @Builder
 @NoArgsConstructor
@@ -27,8 +25,9 @@ public class CartItem {
     @NotBlank
     private Long productId;
     @NotBlank
+    private BigDecimal price;
+    @NotBlank
     private long quantity;
-    private BigDecimal cumulativePrice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id")

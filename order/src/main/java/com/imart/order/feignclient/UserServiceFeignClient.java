@@ -1,4 +1,4 @@
-package com.imart.order.feignclients;
+package com.imart.order.feignclient;
 
 import com.imart.order.dto.foreign.Address;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -13,4 +13,7 @@ import java.util.List;
 public interface UserServiceFeignClient {
     @GetMapping("/api/v1/users/address")
     List<Address> getAvailableShippingAddresses(@RequestHeader("X-User-Id")Long userId);
+
+    @GetMapping("/api/v1/users/loginStatus")
+    boolean isLoggedIn(@RequestHeader("X-User-Id") Long userId);
 }

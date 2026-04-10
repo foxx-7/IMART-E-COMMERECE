@@ -1,7 +1,6 @@
 package com.imart.order.dto.local;
 
-import com.imart.order.dto.foreign.Cart;
-import com.imart.order.dto.foreign.CartItemResponse;
+import com.imart.order.dto.foreign.CartItem;
 import com.imart.order.model.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +19,7 @@ import java.util.List;
 public class OrderCreatedEvent {
     private Long userId;
     private Cart cart;
-    private List<CartItemResponse> items;
+    private List<CartItem> items;
     private BigDecimal totalAmount;
     private OrderStatus status;
     private LocalDateTime creationTimeStamp;

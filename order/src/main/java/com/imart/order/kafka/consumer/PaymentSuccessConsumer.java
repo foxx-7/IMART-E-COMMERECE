@@ -1,7 +1,7 @@
-package com.imart.order.consumer;
+package com.imart.order.kafka.consumer;
 
-import com.imart.order.dto.local.CheckOutEvent;
-import com.imart.order.dto.local.OrderCreatedEvent;
+import com.imart.order.dto.local.TransactionRecord;
+import com.imart.order.service.CheckOutService;
 import com.imart.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component;
         private final OrderService orderService;
 
         @KafkaListener(topics = "checkout-event", groupId = "checkout-group")
-        public void consumeOrderCreated(@Payload CheckOutEvent event, @Header(KafkaHeaders.RECEIVED_TOPIC ) String topic){
-            logger.info(KAFKA_RECEPTION_SUCCESS, topic, event);
+        public void consumeOrderCreated(@Payload TransactionRecord record, @Header(KafkaHeaders.RECEIVED_TOPIC ) String topic){
+            orderService.confirmOrder(record);
+            logger.info(KAFKA_RECEPTION_SUCCESS, topic, record);
         }
 }

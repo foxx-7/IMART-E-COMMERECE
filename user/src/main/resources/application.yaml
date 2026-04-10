@@ -30,5 +30,6 @@ eureka:
 
 logging:
     level:
-        root:   INFO
-        com.imart.user-service: DEBUG
+        org.hibernate.SQL: DEBUG
+        org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+        com.imart.user.userService: DEBUG

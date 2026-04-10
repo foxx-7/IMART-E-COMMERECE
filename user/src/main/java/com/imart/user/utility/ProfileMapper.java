@@ -10,7 +10,6 @@ public class ProfileMapper {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
-                .address(request.getAddress())
                 .contact(request.getContact())
                 .build();
     }

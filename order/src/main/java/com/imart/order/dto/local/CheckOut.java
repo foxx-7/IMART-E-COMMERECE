@@ -1,14 +1,23 @@
 package com.imart.order.dto.local;
 
 import com.imart.order.dto.foreign.Address;
-import com.imart.order.dto.foreign.Cart;
+import com.imart.order.dto.foreign.CartItem;
 import com.imart.order.model.OrderStatus;
-import lombok.AllArgsConstructor;
+import lombok.Data;
 
-@AllArgsConstructor
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Data
 public class CheckOut {
-    private String sessionId;
-    private OrderStatus status;
-    private Cart cart;
+    private Long userId;
+    private String checkOutSessionId;
+    private List<CartItem> items;
+    private BigDecimal total;
     private Address shippingAddress;
+    private OrderStatus status;
+    private String transactionId;
+    private LocalDateTime creationTimestamp;
 }
